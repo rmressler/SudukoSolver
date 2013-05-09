@@ -6,6 +6,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
+import java.text.DecimalFormat;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
@@ -19,10 +20,10 @@ public class SudokuFrame extends JFrame {
 
 	private JPanel buttons;
 	private JPanel gridPane;
-	private JButton solve, store, reset;
+	private JButton solve, revert, reset, check;
 	private JTextField txt;
 	private JTextField[][] cells;
-	private Grid g;
+	private Grid g, old;
 	private int size;
 	private JButton btnResize;
 
@@ -74,9 +75,14 @@ public class SudokuFrame extends JFrame {
 		buttons.add(txt);
 		btnResize.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent event) {
-				size = Integer.parseInt(txt.getText());
+				try {
+					size = Integer.parseInt(txt.getText());
+				}
+				catch (NumberFormatException e) {
+					txt.setText("Invalid size");
+				}
 				if(size < 9 || Math.sqrt(size) % 1 != 0) {
-					txt.setText("Not a valid grid size, try again.");
+					txt.setText("Invalid size");
 				}
 				else {
 					getContentPane().remove(gridPane);
@@ -85,33 +91,43 @@ public class SudokuFrame extends JFrame {
 			}
 		});
 		
-		store = new JButton("Store");
-		store.addActionListener(new ActionListener() {
+		check = new JButton("Check");
+		check.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent event) {
-				for(int i = 0; i < size; i++) {
-					for(int j = 0; j < size; j++) {
-						String str = cells[i][j].getText();
-						if(str.equals("")) str += "0";
-						int val = Integer.parseInt(str);
-						if(val > 0 && val <= size) g.grid[i][j].setValue(val); 
-					}
-				}
+				store();
+				if(g.errors()) txt.setText("Errors!");
+				else txt.setText("No errors.");
 			}
 		});
-		buttons.add(store);
+		buttons.add(check);
 		
 		solve = new JButton("Solve!");
 		solve.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent event) {
+				store();
+				old = new Grid(g);
+				long startTime = System.nanoTime();
 				g = g.solver(g);
-				for(int i = 0; i < size; i++) {
-					for(int j = 0; j < size; j++) {
-						cells[i][j].setText("" + g.grid[i][j].getValue());
-					}
+				long endTime = System.nanoTime();
+				if(g != null) {
+					write();
+					double time = (endTime - startTime) / Math.pow(10, 9);
+					DecimalFormat df = new DecimalFormat("#.####");
+					txt.setText(df.format(time));
 				}
+				else txt.setText("Not solvable");
 			}
 		});
 		buttons.add(solve);
+
+		revert = new JButton("Revert");
+		revert.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent event) {
+				g = old;
+				write();
+			}
+		});
+		buttons.add(revert);
 		
 		reset = new JButton("Reset");
 		reset.addActionListener(new ActionListener() {
@@ -125,6 +141,30 @@ public class SudokuFrame extends JFrame {
 		getContentPane().add(buttons, BorderLayout.EAST);
 	}
 
+	public void store() {
+		for(int i = 0; i < size; i++) {
+			for(int j = 0; j < size; j++) {
+				String str = cells[i][j].getText();
+				if(str.equals("")) g.grid[i][j].reset();
+				else {
+					int val = Integer.parseInt(str);
+					if(val > 0 && val <= size) g.grid[i][j].setValue(val); 
+				}
+			}
+		}
+	}
+	
+	public void write() {
+		for(int i = 0; i < size; i++) {
+			for(int j = 0; j < size; j++) {
+				String str = "" + g.grid[i][j].getValue();
+				if(str.equals("0")) {
+					cells[i][j].setText("");
+				}
+				else cells[i][j].setText(str);
+			}
+		}
+	}
 	
 	public void create(int size) {
 		gridPane = new JPanel();

@@ -80,4 +80,12 @@ public class Cell {
 			poss[i] = false;
 		}
 	}
+	
+	public void reset() {
+		finalized = false;
+		value = 0;
+		for(int i = 0; i < max; i++) {
+			poss[i] = true;
+		}
+	}
 }
